@@ -117,3 +117,10 @@ target_include_directories(moonlight-common-c SYSTEM PRIVATE
 )
 
 target_compile_definitions(moonlight-common-c PRIVATE HAS_SOCKLEN_T)
+
+option(ARF_BUILD_TESTS "Build ARF media-clock framing regression tests" OFF)
+if(ARF_BUILD_TESTS)
+  enable_testing()
+  add_executable(test-arf-audio tests/test_arf_audio.c)
+  add_test(NAME arf-audio-framing COMMAND test-arf-audio)
+endif()
