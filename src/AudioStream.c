@@ -1,4 +1,29 @@
 #include "Limelight-internal.h"
+#include "ArfAudio.h"
+
+// Set only before a connection starts. The presentation timestamp is read inside
+// the synchronous audio callback on this same decoder thread.
+static bool arfAvSyncEnabled;
+static uint64_t arfAudioHostTimeUs;
+
+void LiSetArfAvSyncEnabled(bool enabled) {
+    arfAvSyncEnabled = enabled;
+    arfAudioHostTimeUs = 0;
+}
+
+uint64_t LiGetArfAudioHostTimeUs(void) {
+    return arfAudioHostTimeUs;
+}
+
+static void deliverAudioSample(const char* data, int length) {
+    arfAudioHostTimeUs = 0;
+    if (arfAvSyncEnabled && length > 0 && !ArfParseAudio(&data, &length, &arfAudioHostTimeUs)) {
+        // Treat malformed timing metadata as loss, not as an Opus payload.
+        data = NULL;
+        length = 0;
+    }
+    AudioCallbacks.decodeAndPlaySample((char*)data, length);
+}
 
 static SOCKET rtpSocket = INVALID_SOCKET;
 
@@ -164,7 +189,7 @@ static void decodeInputData(PQUEUED_AUDIO_PACKET packet) {
     // packet. Trigger packet loss concealment logic in libopus by
     // invoking the decoder with a NULL buffer.
     if (packet->header.size == 0) {
-        AudioCallbacks.decodeAndPlaySample(NULL, 0);
+        deliverAudioSample(NULL, 0);
         return;
     }
 
@@ -215,7 +240,7 @@ static void decodeInputData(PQUEUED_AUDIO_PACKET packet) {
         }
 #endif
 
-        AudioCallbacks.decodeAndPlaySample((char*)decryptedOpusData, dataLength);
+        deliverAudioSample((char*)decryptedOpusData, dataLength);
     }
     else {
 #ifdef LC_DEBUG
@@ -232,7 +257,7 @@ static void decodeInputData(PQUEUED_AUDIO_PACKET packet) {
         }
 #endif
 
-        AudioCallbacks.decodeAndPlaySample((char*)(rtp + 1), packet->header.size - sizeof(*rtp));
+        deliverAudioSample((char*)(rtp + 1), packet->header.size - sizeof(*rtp));
     }
 }
 

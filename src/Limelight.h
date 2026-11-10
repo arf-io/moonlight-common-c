@@ -1018,6 +1018,15 @@ void LiRequestIdrFrame(void);
 #define LI_FF_CONTROLLER_TOUCH_EVENTS 0x02 // LiSendControllerTouchEvent() supported
 uint32_t LiGetHostFeatureFlags(void);
 
+// ARF v1 optional media clock. Call the setter before LiStartConnection(), only
+// after the host's launch/resume response explicitly acknowledges arfAvSync=1.
+// Unmodified hosts and clients must retain the normal GameStream payload format.
+void LiSetArfAvSyncEnabled(bool enabled);
+
+// Host steady-clock microseconds for the first PCM sample in this Opus packet.
+// Valid only inside decodeAndPlaySample(); zero for loss concealment/unavailable time.
+uint64_t LiGetArfAudioHostTimeUs(void);
+
 #ifdef __cplusplus
 }
 #endif
